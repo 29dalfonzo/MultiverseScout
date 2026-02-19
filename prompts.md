@@ -149,4 +149,158 @@ Cada entrada incluye el **prompt** indicado y un **resumen del resultado** obten
 
 ---
 
+## Entrada 11
+
+**Fecha:** 2025-02-19  
+
+**Prompt (implícito / corrección):**
+> Resolver error 500 al crear u obtener batalla (GET /api/batallas/{id}); comprobar deserialización desde RethinkDB y manejo de errores.
+
+**Resumen del resultado:**
+- **BatallasRepository:** El campo `fecha` se guarda como string ISO (`ToString("o")`) para evitar el tipo TIME de RethinkDB; la clase interna `BatallaDoc` usa `object? fecha` y `ParseFecha()` interpreta string, DateTime u objeto con `epoch_time` (compatibilidad con documentos ya insertados).
+- **Program.cs:** POST `/api/batallas` y GET `/api/batallas/{id}` envueltos en try/catch con ILogger; en desarrollo se devuelve el detalle de la excepción en la respuesta 500 para diagnosticar fallos.
+
+---
+
+## Entrada 12
+
+**Fecha:** 2025-02-19  
+
+**Prompt (implícito / corrección):**
+> Error al obtener batalla: "Primary keys must be either a number, string, bool, pseudotype or array (got type OBJECT)" en GetAll con índice.
+
+**Resumen del resultado:**
+- En el driver C# de RethinkDB, el índice secundario no se pasa como segundo argumento de `GetAll`, sino con **OptArg**.
+- **BatallasRepository:** `GetAll(batallaId, new { index = "batallaId" })` sustituido por `GetAll(batallaId).OptArg("index", "batallaId")` en GetResultadosBatallaAsync y RegistrarVotoAsync.
+- **PersonajesRepository:** `GetAll((int)universo.Value, new { index = "universo" })` sustituido por `GetAll((int)universo.Value).OptArg("index", "universo")`.
+
+---
+
+## Entrada 13
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> Poder compartir las batallas: al enfrentar debe actualizarse la URL para poder compartirla; que al abrir el enlace desde otro equipo se vea la misma batalla.
+
+**Resumen del resultado:**
+- **Rutas en Home.razor:** Añadida `@page "/batalla/{id}"` además de `@page "/"`; parámetro `[Parameter] public string? Id { get; set; }`.
+- **NavigationManager:** Tras crear la batalla con éxito en Enfrentar, se llama `Navigation.NavigateTo($"/batalla/{batalla.Id}", replace: true)` para actualizar la URL (ej. `http://localhost:5000/batalla/0abbfe25b9f9476cb26c43ea22e0d575`).
+- **Carga por enlace:** En `OnParametersSetAsync`, si `Id` tiene valor se llama a `CargarBatallaPorIdAsync(Id)`, que obtiene la batalla por GET, carga los dos personajes y el guion, y muestra la misma vista de enfrentamiento y votación.
+- **Estado de carga:** Variable `loadingBatalla` y mensaje "Cargando batalla…" al abrir un enlace compartido. Mensaje de error si la batalla no existe o la API falla.
+- Cualquier persona con el enlace puede abrir la misma batalla y votar desde otro dispositivo.
+
+---
+
+## Entrada 14
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> Hacer que los votos se actualicen en la pantalla de cada usuario cuando se realice el voto.
+
+**Resumen del resultado:**
+- **Polling:** Mientras se muestra una batalla, un `Timer` llama cada 4 segundos a `GET /api/batallas/{id}` y actualiza `batallaDetalle` con los resultados (votos de cada personaje).
+- **Home.razor:** Constante `VotosRefreshIntervalMs = 4000`; método `RefrescarVotosEnBackground()` con `InvokeAsync` + `StateHasChanged()` para actualizar la UI desde el hilo correcto.
+- El timer se inicia en `IniciarRefreshVotos()` al cargar la batalla (por Enfrentar o por enlace) y se detiene en `Dispose()` al salir de la página.
+
+---
+
+## Entrada 15
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> Agregar un timer de 30 s al empezar el enfrentamiento; cuando termine, modal o notificación con el ganador, botón Aceptar y opción Jugar de nuevo (volver a la página principal). Deshabilitar la selección de personaje cuando se está en un enfrentamiento.
+
+**Resumen del resultado:**
+- **Timer 30 s:** Al mostrar la batalla se inicia cuenta atrás; texto visible "Votación termina en: 0:30" (hasta 0); al llegar a 0 se muestra "Votación cerrada" y se dejan de refrescar votos.
+- **Modal ganador:** Al terminar el tiempo se abre modal con "¡Ganador: [Nombre]!" o "¡Empate!"; botones "Aceptar" y "Jugar de nuevo". "Jugar de nuevo" navega a "/".
+- **Selector deshabilitado:** La sección de selección de personajes (dropdowns y botón Enfrentar) solo se muestra cuando `batallaDetalle is null`; durante la batalla no se muestra.
+- Botones de votar deshabilitados cuando `segundosRestantesVotacion <= 0`. Estilos en app.css para `.comic-votacion-timer`, `.comic-modal-backdrop`, `.comic-modal`, `.btn-modal`.
+
+---
+
+## Entrada 16
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> En el modal del ganador, al dar Aceptar debe habilitarse el botón "Jugar de nuevo" debajo de "Votación cerrada". El texto "Encuentro en el Multiverso" debe aparecer como modal al iniciar el enfrentamiento; al cerrar ese modal es cuando inicia el timer.
+
+**Resumen del resultado:**
+- **Modal del guion al iniciar:** Al cargar la batalla (Enfrentar o enlace) se muestra un modal con título "Encuentro en el Multiverso" y el guion narrativo; botón "¡A la batalla!". No se llama a `IniciarRefreshVotos()` ni `IniciarCountdownVotacion()` hasta que el usuario cierra este modal.
+- **Timer inicia al cerrar:** `CerrarModalGuion()` cierra el modal del guion y entonces llama a `IniciarRefreshVotos()` e `IniciarCountdownVotacion()`. La barra "Votación termina en: 0:30" y los botones de votar solo se muestran/habilitan tras cerrar el modal del guion.
+- **Aceptar en modal ganador:** `CerrarModalGanador()` pone `mostrarModalGanador = false` y `mostrarBotonJugarDeNuevo = true`. Debajo del texto "Votación cerrada" se muestra el botón "Jugar de nuevo" (clase `.btn-jugar-de-nuevo-inline`) que llama a `JugarDeNuevo()`.
+- Variable `mostrarModalGuion`; sección del guion fijo en la página solo visible cuando el modal del guion está cerrado. Estilos para `.comic-modal-guion`, `.comic-modal-guion-text`, `.btn-comenzar`, `.btn-jugar-de-nuevo-inline`.
+
+---
+
+## Entrada 17
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> Mostrar el avatar/icono de cada héroe en la batalla; las imágenes están en wwwroot/images/heroes con nombre {id}.png.
+
+**Resumen del resultado:**
+- En **Home.razor** el `<div class="character-avatar">` pasa a contener un `<img src="images/heroes/@(personaje.Id).png" alt="@personaje.Nombre" class="character-avatar-img" loading="lazy" />` para personaje A y B.
+- En **app.css** se añade `.character-avatar-img` (width/height 100%, object-fit: cover) y se mantiene `.character-avatar` con overflow hidden y dimensiones para que la imagen llene el círculo. Si la imagen falla se ve el degradado de fondo.
+
+---
+
+## Entrada 18
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> En el listado de enfrentamiento filtrar según Marvel vs DC: si en un selector se elige un héroe Marvel, el otro debe mostrar solo DC y viceversa.
+
+**Resumen del resultado:**
+- **PersonajesParaA** y **PersonajesParaB**: listas calculadas que usan `FiltrarPorUniversoOpuesto(idDelOtro)`. Si el otro selector tiene valor, se devuelven solo personajes del universo opuesto (Marvel ↔ DC).
+- Los selectores en Home.razor usan `PersonajesParaA` y `PersonajesParaB` en lugar de `personajes`.
+- En **OnSelectionChanged**, si ambos seleccionados son del mismo universo se limpia `selectedIdB` para forzar Marvel vs DC.
+
+---
+
+## Entrada 19
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> División de pantalla diagonal real (no vertical); tarjetas de personajes por encima para que no se tapen.
+
+**Resumen del resultado:**
+- **Fondos:** `.diagonal-backgrounds` con dos divs (`.half-left`, `.half-right`) con `clip-path` en triángulos (inferior izquierdo y superior derecho) y fondos azul/rojo; z-index 0.
+- **Línea diagonal:** `::before` en `.diagonal-split` (rotación -45°), inicialmente z-index 1.
+- **Tarjetas:** `.diagonal-foreground` con las mismas mitades (sin fondo, con clip-path) conteniendo las `.character-card`; z-index 2 (10 en ajuste posterior). Estructura en Home.razor: diagonal-backgrounds (fondos vacíos) y diagonal-foreground (mitades con cards).
+
+---
+
+## Entrada 20
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> Ajustar tarjetas para que no se vean por debajo del enfrentamiento; en responsive un bloque arriba y otro debajo para poder votar.
+
+**Resumen del resultado:**
+- Se quita `clip-path` de `.diagonal-foreground .half-left` y `.half-right` para que las tarjetas no se recorten; mitades con `width: 50%` y z-index 10. `.comic-battle` con `overflow: visible`.
+- **Responsive (max-width 767px):** `.diagonal-foreground` pasa a `position: relative`, `flex-direction: column`; cada mitad `width: 100%`, `height: auto`, apiladas (primera arriba, segunda abajo) con fondos y bordes; tarjetas con `max-width: 100%` y padding para que los botones de votar queden visibles y clicables.
+
+---
+
+## Entrada 21
+
+**Fecha:** 2025-02-19  
+
+**Prompt:**
+> La línea brillante del medio quedó por debajo de todo; ajustar. Agregar los prompts faltantes al archivo.
+
+**Resumen del resultado:**
+- En **app.css** el pseudo-elemento `.diagonal-split::before` (línea diagonal amarilla/roja) pasa a `z-index: 15` para que se dibuje por encima de las tarjetas y se vea brillar en el centro.
+- Se añaden al **prompts.md** las entradas 17 a 21 (avatares de héroes, filtro Marvel/DC, división diagonal y tarjetas, ajuste responsive y tarjetas completas, línea por encima y registro de prompts).
+
+---
+
 *Las siguientes entradas se irán añadiendo conforme se indiquen nuevos prompts.*
