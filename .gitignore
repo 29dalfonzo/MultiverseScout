@@ -1,0 +1,96 @@
+# =============================
+# .NET / Visual Studio
+# =============================
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Oo]ut/
+[Bb]uild/
+[Bb]uild[Bb]in/
+
+*.dll
+*.exe
+*.pdb
+*.cache
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.rsuser
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+packages/
+!packages/build/
+
+# Blazor / ASP.NET Core
+blazor.boot.json
+service-worker*.js
+service-worker-assets.js
+wwwroot/_framework/
+*.staticwebassets.endpoints.json
+*.staticwebassets.runtime.json
+
+# =============================
+# IDEs y editores
+# =============================
+.vs/
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.idea/
+*.sln.iml
+
+# =============================
+# Sistema operativo
+# =============================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =============================
+# Secretos y configuración local
+# =============================
+*.local
+.env
+.env.local
+.env.*.local
+appsettings.*.local.json
+secrets.json
+*.pfx
+
+# =============================
+# Node (si usas npm/webpack en el futuro)
+# =============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =============================
+# Otros
+# =============================
+*.swp
+*~
+*.bak
+*.tmp
+.cache/
