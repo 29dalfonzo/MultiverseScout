@@ -1,0 +1,18 @@
+# RethinkDB para desarrollo local (Multiverse Scout)
+# Uso: docker compose up -d
+# Conexión desde la API: Host=localhost, Port=28015
+# Consola web: http://localhost:8080
+
+services:
+  rethinkdb:
+    image: rethinkdb:2.4
+    container_name: multiverse-rethinkdb
+    ports:
+      - "28015:28015"
+      - "8080:8080"
+    volumes:
+      - rethinkdb_data:/data
+    restart: unless-stopped
+
+volumes:
+  rethinkdb_data:

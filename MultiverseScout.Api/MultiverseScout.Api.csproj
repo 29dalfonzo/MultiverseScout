@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MultiverseScout.Contracts\MultiverseScout.Contracts.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MultiverseScout.Api</RootNamespace>
+    <AssemblyName>MultiverseScout.Api</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Orleans: hosting (silo) + cliente en proceso para que la API llame a los grains -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Server" Version="8.2.0" />
+  </ItemGroup>
+
+  <!-- Persistencia: RethinkDB (driver de comunidad) -->
+  <ItemGroup>
+    <PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
+  </ItemGroup>
+
+  <!-- API REST: Minimal APIs viene con Microsoft.NET.Sdk.Web, no paquete extra -->
+
+</Project>

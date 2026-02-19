@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Serialization.Abstractions" Version="8.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MultiverseScout.Contracts</RootNamespace>
+    <AssemblyName>MultiverseScout.Contracts</AssemblyName>
+  </PropertyGroup>
+
+</Project>
