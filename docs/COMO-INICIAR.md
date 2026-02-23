@@ -4,6 +4,29 @@ Esta guía indica el **orden** en que hay que levantar cada parte del proyecto y
 
 ---
 
+## Opción rápida: todo con Docker (un solo comando)
+
+Si tienes **Docker** instalado, puedes levantar base de datos, seed de datos, API y frontend con un solo comando desde la **raíz del repositorio**:
+
+```bash
+docker compose up -d
+```
+
+- **Seed:** Se ejecuta una vez al levantar. Si la base **ya tiene datos** (p. ej. personajes), **no inserta de nuevo** para evitar duplicados.
+- **Orden:** RethinkDB → Seed (espera a que termine) → API → Frontend.
+
+**URLs:**
+
+| Servicio   | URL                      |
+|------------|--------------------------|
+| Frontend   | http://localhost:8080    |
+| API        | http://localhost:5050     |
+| RethinkDB (consola) | http://localhost:8081 |
+
+Para parar todo: `docker compose down`. Los datos en el volumen se conservan.
+
+---
+
 ## Requisitos previos
 
 - **.NET 8 SDK** — [Descargar](https://dotnet.microsoft.com/download/dotnet/8.0)
@@ -106,9 +129,9 @@ Se abrirá el navegador o verás en consola una URL del tipo `https://localhost:
 | Servicio           | Puerto  | URL / Uso                          |
 |--------------------|---------|------------------------------------|
 | RethinkDB (driver) | 28015   | Conexión API y Seed                |
-| RethinkDB (web UI) | 8080    | http://localhost:8080              |
+| RethinkDB (web UI) | 8080 (local) / 8081 (todo Docker) | http://localhost:8080 o 8081 según modo |
 | MultiverseScout.Api| 5050    | http://localhost:5050              |
-| MultiverseScout (Blazor) | 5xxx/7xxx | La que muestre `dotnet run` |
+| MultiverseScout (Blazor) | 8080 (Docker) / 5xxx (local) | http://localhost:8080 o la que muestre `dotnet run` |
 
 ---
 

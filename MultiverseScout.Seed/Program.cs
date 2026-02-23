@@ -3,18 +3,106 @@ using static RethinkDb.Driver.RethinkDB;
 
 const string DbName = "multiverse";
 const string TablePersonajes = "personajes";
+const int MaxRetries = 30;
+const int RetryDelayMs = 2000;
+const int MaxReadyRetries = 30; // esperar a que la réplica primaria esté disponible
 
-var host = Environment.GetEnvironmentVariable("RETHINKDB_HOST") ?? "localhost";
-var port = int.TryParse(Environment.GetEnvironmentVariable("RETHINKDB_PORT"), out var p) ? p : 28015;
+try
+{
+    var host = Environment.GetEnvironmentVariable("RETHINKDB_HOST") ?? "localhost";
+    var port = int.TryParse(Environment.GetEnvironmentVariable("RETHINKDB_PORT"), out var p) ? p : 28015;
 
-Console.WriteLine($"Conectando a RethinkDB en {host}:{port}...");
-var conn = R.Connection().Hostname(host).Port(port).Timeout(30).Connect();
-Console.WriteLine("Conectado.");
+    Console.WriteLine($"Conectando a RethinkDB en {host}:{port}...");
+    IConnection? conn = null;
+    for (var i = 0; i < MaxRetries; i++)
+    {
+        try
+        {
+            conn = R.Connection().Hostname(host).Port(port).Timeout(5).Connect();
+            break;
+        }
+        catch (Exception ex)
+        {
+            if (i == MaxRetries - 1)
+            {
+                Console.WriteLine($"Error: no se pudo conectar tras {MaxRetries} intentos. {ex.Message}");
+                return 1;
+            }
+            Console.WriteLine($"  Intento {i + 1}/{MaxRetries}: esperando {RetryDelayMs / 1000}s...");
+            await Task.Delay(RetryDelayMs);
+        }
+    }
 
-await EnsureDatabaseAndTableAsync(conn);
-await InsertPersonajesAsync(conn);
-Console.WriteLine("Listo. 10 personajes insertados (5 Marvel, 5 DC).");
-return 0;
+    if (conn is null)
+        return 1;
+
+    Console.WriteLine("Conectado. Esperando a que la base esté lista...");
+
+    for (var i = 0; i < MaxReadyRetries; i++)
+    {
+        try
+        {
+            await R.DbList().RunResultAsync<List<string>>(conn);
+            break;
+        }
+        catch (Exception ex) when (ex.Message.Contains("primary replica", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("not available", StringComparison.OrdinalIgnoreCase))
+        {
+            if (i == MaxReadyRetries - 1)
+            {
+                Console.WriteLine($"Error: RethinkDB no estuvo listo tras {MaxReadyRetries} intentos. {ex.Message}");
+                return 1;
+            }
+            await Task.Delay(RetryDelayMs);
+        }
+    }
+
+    Console.WriteLine("Base lista.");
+
+    for (var attempt = 0; attempt < MaxReadyRetries; attempt++)
+    {
+        try
+        {
+            await EnsureDatabaseAndTableAsync(conn);
+
+            long count = 0;
+            try
+            {
+                var n = await R.Db(DbName).Table(TablePersonajes).Count().RunResultAsync<double>(conn);
+                count = (long)n;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Advertencia al contar: {ex.Message}. Se asume 0.");
+            }
+
+            if (count > 0)
+            {
+                Console.WriteLine($"La base ya tiene datos ({count} personajes). Se omite la inserción para evitar duplicados.");
+                return 0;
+            }
+
+            await InsertPersonajesAsync(conn);
+            Console.WriteLine("Listo. 10 personajes insertados (5 Marvel, 5 DC).");
+            return 0;
+        }
+        catch (Exception ex) when (ex.Message.Contains("primary replica", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("not available", StringComparison.OrdinalIgnoreCase))
+        {
+            if (attempt == MaxReadyRetries - 1)
+            {
+                Console.WriteLine($"Error: operación fallida tras {MaxReadyRetries} intentos. {ex.Message}");
+                return 1;
+            }
+            await Task.Delay(RetryDelayMs);
+        }
+    }
+
+    return 1;
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error inesperado: {ex.Message}");
+    return 1;
+}
 
 async Task EnsureDatabaseAndTableAsync(IConnection c)
 {

@@ -1,0 +1,22 @@
+# Git y IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+!MultiverseScout.Api/DEPENDENCIAS-BACKEND.md
+
+# Build y publicar locales
+**/bin
+**/obj
+**/publish
+**/publish-out
+
+# Otros
+**/node_modules
+**/.DS_Store
+**/Thumbs.db
+**/*.user
+**/*.log
+docker-compose*.yml
+.dockerignore

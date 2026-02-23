@@ -1,7 +1,9 @@
-# RethinkDB para desarrollo local (Multiverse Scout)
+# Multiverse Scout: BD + Seed + API + Frontend con un solo comando
 # Uso: docker compose up -d
-# Conexión desde la API: Host=localhost, Port=28015
-# Consola web: http://localhost:8080
+# El seed se ejecuta una vez; si ya hay datos en la base, no inserta para evitar duplicados.
+# Frontend: http://localhost:8080
+# API:      http://localhost:5050
+# RethinkDB consola web: http://localhost:8081
 
 services:
   rethinkdb:
@@ -9,9 +11,52 @@ services:
     container_name: multiverse-rethinkdb
     ports:
       - "28015:28015"
-      - "8080:8080"
+      - "8081:8080"
     volumes:
       - rethinkdb_data:/data
+    restart: unless-stopped
+
+  seed:
+    build:
+      context: .
+      dockerfile: MultiverseScout.Seed/Dockerfile
+    container_name: multiverse-seed
+    environment:
+      RETHINKDB_HOST: rethinkdb
+      RETHINKDB_PORT: "28015"
+    depends_on:
+      - rethinkdb
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: MultiverseScout.Api/Dockerfile
+    container_name: multiverse-api
+    ports:
+      - "5050:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      RethinkDB__Host: rethinkdb
+      RethinkDB__Port: "28015"
+      RethinkDB__Database: multiverse
+      Cors__AllowedOrigins: "http://localhost:8080;http://localhost:5050"
+    depends_on:
+      rethinkdb:
+        condition: service_started
+      seed:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: MultiverseScout/Dockerfile
+    container_name: multiverse-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
     restart: unless-stopped
 
 volumes:
